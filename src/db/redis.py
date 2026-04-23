@@ -52,7 +52,10 @@ class RedisClient:
         """获取 JSON 格式的值"""
         value = await self.get(key)
         if value:
-            return json.loads(value)
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                return None
         return None
 
     async def set_json(

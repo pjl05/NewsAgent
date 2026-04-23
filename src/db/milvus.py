@@ -14,10 +14,27 @@ class MilvusClientWrapper:
         self._collection_name = "content_embeddings"
 
     def connect(self, uri: str | None = None) -> None:
-        """连接 Milvus Lite（本地文件模式）"""
-        # Milvus Lite 使用本地文件存储
-        uri = uri or "./milvus_lite.db"
+        """连接 Milvus（TCP 模式）"""
+        uri = uri or "http://milvus:19530"
         self._client = MilvusClient(uri=uri)
+
+        if not self._client.has_collection(self._collection_name):
+            self.create_collection()
+
+        self._client.load_collection(self._collection_name)
+
+    def _ensure_loaded(self) -> None:
+        """确保 collection 已加载到内存，避免搜索时报 not loaded 错误"""
+        if self._client is None:
+            raise RuntimeError("Milvus client not connected")
+
+        try:
+            stats = self._client.get_collection_stats(self._collection_name)
+            state = stats.get("load_state", {}).get("state", "")
+            if state != "Loaded":
+                self._client.load_collection(self._collection_name)
+        except Exception:
+            self._client.load_collection(self._collection_name)
 
     def disconnect(self) -> None:
         """断开连接（Milvus Lite 无需断开）"""
@@ -31,11 +48,30 @@ class MilvusClientWrapper:
         if self._client.has_collection(self._collection_name):
             self._client.drop_collection(self._collection_name)
 
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema(name="content_id", dtype=DataType.VARCHAR, max_length=256),
+            FieldSchema(name="title", dtype=DataType.VARCHAR, max_length=1024),
+            FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=1536),
+        ]
+        schema = CollectionSchema(fields=fields, description="Content embeddings for NewsAgent")
         self._client.create_collection(
             collection_name=self._collection_name,
-            dimension=1536,
-            description="Content embeddings for NewsAgent",
+            schema=schema,
+            metric_type="COSINE",
         )
+        # 创建索引（前需要先建索引才能 load）
+        index_params = self._client.prepare_index_params()
+        index_params.add_index(
+            field_name="embedding",
+            index_type="AUTOINDEX",
+            metric_type="COSINE",
+        )
+        self._client.create_index(
+            collection_name=self._collection_name,
+            index_params=index_params,
+        )
+        self._client.load_collection(self._collection_name)
 
     def insert(
         self,
@@ -66,6 +102,8 @@ class MilvusClientWrapper:
         """搜索相似向量"""
         if self._client is None:
             raise RuntimeError("Milvus client not connected")
+
+        self._ensure_loaded()
 
         results = self._client.search(
             collection_name=self._collection_name,

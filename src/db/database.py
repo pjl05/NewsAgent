@@ -1,11 +1,13 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from contextlib import contextmanager
 from typing import Generator
 
 from src.config import get_settings
 
 settings = get_settings()
+
+Base = declarative_base()
 
 engine = create_engine(
     settings.database_url,
@@ -29,10 +31,8 @@ def get_db() -> Generator[Session, None, None]:
 
 def init_db() -> None:
     """初始化数据库表"""
-    from src.models.user import Base as UserBase
-    from src.models.content import Base as ContentBase
-    from src.models.interaction import Base as InteractionBase
+    from src.models.user import User
+    from src.models.content import Content
+    from src.models.interaction import Interaction
 
-    # 所有模型使用相同的 Base declarative_base
-    from src.models.user import Base
     Base.metadata.create_all(bind=engine)

@@ -49,15 +49,24 @@ async def query_news(req: QueryRequest):
 
 @app.post("/content/embed")
 async def embed_content(content_id: str, title: str, text: str):
-    minimax = get_minimax()
-    embedding = await minimax.get_embedding(text)
-    milvus_client.insert(content_id, title, embedding)
-    return {"status": "ok"}
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        minimax = get_minimax()
+        embedding = await minimax.get_embedding(text)
+        milvus_client.insert(content_id, title, embedding)
+        return {"status": "ok"}
+    except Exception as e:
+        logger.exception("embed_content failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/content/search")
 async def search_content(query: str, top_k: int = 10):
-    minimax = get_minimax()
-    query_embedding = await minimax.get_embedding(query)
-    results = milvus_client.search(query_embedding, top_k)
-    return {"results": results}
+    try:
+        minimax = get_minimax()
+        query_embedding = await minimax.get_embedding(query)
+        results = milvus_client.search(query_embedding, top_k)
+        return {"results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e

@@ -7,8 +7,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     milvus_host: str = "localhost"
     milvus_port: int = 19530
-    minimax_api_key: str = ""
-    minimax_model: str = "abab6.5s-chat"
+    minimax_api_key: str = "sk-cp-lHExR1fbSDQw4QdwDIsLUZIOATAXcooBUnpKMXIIDBAsBvpadscNNqc5h634Og4GG-ru34cxokk-S0nh69eFSQ-4mzH1J7YSudQ3MCxmccvD-EA9nLDA4qs"
+    minimax_embedding_api_key: str = "sk-cc46a6f6615b4708a2c0c3d42b631123"
+    minimax_model: str = "MiniMax-M2.7"
     wechat_app_id: str = ""
     wechat_app_secret: str = ""
 

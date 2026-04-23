@@ -17,32 +17,44 @@ class TestMiniMaxService:
     @pytest.mark.asyncio
     async def test_chat(self, service):
         """测试聊天功能"""
-        mock_response = {
+        mock_response_data = {
             "choices": [
                 {"message": {"content": "Hello, this is a test response"}}
             ]
         }
 
-        with patch("httpx.AsyncClient.post") as mock_post:
-            mock_post.return_value.json.return_value = mock_response
-            mock_post.return_value.status_code = 200
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.json = AsyncMock(return_value=mock_response_data)
 
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
             result = await service.chat([{"role": "user", "content": "hello"}])
             assert "test response" in result
 
     @pytest.mark.asyncio
     async def test_get_embedding(self, service):
         """测试获取 embedding"""
-        mock_response = {
+        mock_response_data = {
             "data": [
                 {"embedding": [0.1] * 1536}
             ]
         }
 
-        with patch("httpx.AsyncClient.post") as mock_post:
-            mock_post.return_value.json.return_value = mock_response
-            mock_post.return_value.status_code = 200
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.json = AsyncMock(return_value=mock_response_data)
 
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
             result = await service.get_embedding("test text")
             assert len(result) == 1536
             assert result[0] == 0.1
@@ -52,9 +64,15 @@ class TestMiniMaxService:
         """测试文字转语音"""
         mock_audio = b"fake audio content"
 
-        with patch("httpx.AsyncClient.post") as mock_post:
-            mock_post.return_value.content = mock_audio
-            mock_post.return_value.status_code = 200
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.content = mock_audio
 
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
             result = await service.text_to_speech("test text")
             assert result == mock_audio

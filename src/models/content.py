@@ -1,8 +1,7 @@
 from sqlalchemy import Column, String, Text, DateTime, JSON, Integer
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
-Base = declarative_base()
+from src.db.database import Base
 
 
 class Content(Base):
