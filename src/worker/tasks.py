@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 
 from src.worker.celery_app import celery_app
 from src.collector.rss_collector import RSSCollector
-from src.collector.platform_collector import PlatformCollector
+from src.collector.tianapi_collector import TianAPICollector
 from src.collector.search_collector import SearchCollector
 from src.collector.dedup import deduplicate_content
 from src.db.database import get_db
@@ -27,9 +27,9 @@ def collect_rss() -> Dict[str, int]:
 
 @celery_app.task
 def collect_platforms() -> Dict[str, int]:
-    """定时采集微博/知乎热搜"""
-    collector = PlatformCollector()
-    items = asyncio.run(collector.collect(["weibo", "zhihu"]))
+    """定时采集微博/抖音/百度热搜（通过 TianAPI）"""
+    collector = TianAPICollector()
+    items = asyncio.run(collector.collect(["weibo", "douyin", "baidu"]))
     items = deduplicate_content(items)
     _save_contents(items)
     return {"collected": len(items)}

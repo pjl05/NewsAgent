@@ -13,6 +13,7 @@ services:
       - MINIMAX_MODEL=MiniMax-M2.7
       - WECHAT_APP_ID=${WECHAT_APP_ID}
       - WECHAT_APP_SECRET=${WECHAT_APP_SECRET}
+      - TIANAPI_KEY=${TIANAPI_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -39,6 +40,7 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
       - MINIMAX_API_KEY=${MINIMAX_API_KEY}
       - MINIMAX_EMBEDDING_API_KEY=${MINIMAX_EMBEDDING_API_KEY}
+      - TIANAPI_KEY=${TIANAPI_KEY}
     volumes:
       - .:/app
 

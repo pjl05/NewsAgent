@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     wechat_app_id: str = ""
     wechat_app_secret: str = ""
     bing_api_key: str = ""
+    tianapi_key: str = ""
 
     class Config:
         env_file = ".env"
