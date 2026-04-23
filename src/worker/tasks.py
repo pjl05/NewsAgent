@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import List, Dict, Any
 
 from src.worker.celery_app import celery_app
@@ -9,6 +10,8 @@ from src.collector.search_collector import SearchCollector
 from src.collector.dedup import deduplicate_content
 from src.db.database import get_db
 from src.models.content import Content
+
+logger = logging.getLogger(__name__)
 
 
 @celery_app.task
@@ -43,19 +46,24 @@ def collect_search(queries: List[str]) -> Dict[str, int]:
 
 def _save_contents(items: List[Dict[str, Any]]) -> None:
     """将内容写入 PostgreSQL（已存在则跳过）"""
+    if not items:
+        return
+
     for item in items:
-        db = next(get_db())
         try:
-            existing = (
-                db.query(Content)
-                .filter_by(content_id=item["content_id"])
-                .first()
+            with get_db() as db:
+                existing = (
+                    db.query(Content)
+                    .filter_by(content_id=item["content_id"])
+                    .first()
+                )
+                if not existing:
+                    content = Content(**item)
+                    db.add(content)
+                    db.commit()
+        except Exception as e:
+            logger.error(
+                "[_save_contents] Failed to save content %s: %s",
+                item.get("content_id"),
+                e,
             )
-            if not existing:
-                content = Content(**item)
-                db.add(content)
-                db.commit()
-        except Exception:
-            db.rollback()
-        finally:
-            db.close()
