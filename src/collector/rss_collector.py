@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import feedparser
 import hashlib
+import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 from .base import BaseCollector
+
+logger = logging.getLogger(__name__)
 
 
 class RSSCollector(BaseCollector):
@@ -30,7 +33,7 @@ class RSSCollector(BaseCollector):
                     if item:
                         results.append(item)
             except Exception as e:
-                print(f"[RSSCollector] Error parsing {source}: {e}")
+                logger.warning("[RSSCollector] Error parsing %s: %s", source, e)
                 continue
         return results
 
@@ -63,7 +66,7 @@ class RSSCollector(BaseCollector):
                 return datetime(*entry.published_parsed[:6])
             except Exception:
                 pass
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
 
     def _clean_html(self, text: str) -> str:
         text = re.sub(r"<[^>]+>", "", text)
