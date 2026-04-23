@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import datetime
 from typing import List, Dict, Any
 
 import httpx
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 from .base import BaseCollector
 from src.config import get_settings
@@ -26,15 +29,14 @@ class SearchCollector(BaseCollector):
                     search_results = await self._search_duckduckgo(query)
                 results.extend(search_results)
             except Exception as e:
-                print(
-                    f"[SearchCollector] Bing failed for '{query}': {e}, "
-                    "trying DuckDuckGo"
+                logger.warning(
+                    "[SearchCollector] Bing failed for '%s': %s, trying DuckDuckGo", query, e
                 )
                 try:
                     search_results = await self._search_duckduckgo(query)
                     results.extend(search_results)
                 except Exception as e2:
-                    print(f"[SearchCollector] DuckDuckGo also failed: {e2}")
+                    logger.warning("[SearchCollector] DuckDuckGo also failed for '%s': %s", query, e2)
         return results
 
     async def _search_bing(self, query: str) -> List[Dict[str, Any]]:
