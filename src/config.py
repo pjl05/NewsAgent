@@ -3,10 +3,10 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/newsagent"
-    redis_url: str = "redis://localhost:6379/0"
-    celery_broker_url: str = "redis://localhost:6379/1"
-    celery_result_backend: str = "redis://localhost:6379/1"
+    database_url: str = "postgresql://postgres:postgres@db:5432/newsagent"
+    redis_url: str = "redis://redis:6379/0"
+    celery_broker_url: str = "redis://redis:6379/1"
+    celery_result_backend: str = "redis://redis:6379/1"
     milvus_host: str = "localhost"
     milvus_port: int = 19530
     minimax_api_key: str = "sk-cp-lHExR1fbSDQw4QdwDIsLUZIOATAXcooBUnpKMXIIDBAsBvpadscNNqc5h634Og4GG-ru34cxokk-S0nh69eFSQ-4mzH1J7YSudQ3MCxmccvD-EA9nLDA4qs"

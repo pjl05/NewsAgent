@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import List, Dict, Any
 
@@ -28,7 +29,7 @@ def collect_rss() -> Dict[str, int]:
 def collect_platforms() -> Dict[str, int]:
     """定时采集微博/知乎热搜"""
     collector = PlatformCollector()
-    items = collector.collect(["weibo", "zhihu"])
+    items = asyncio.run(collector.collect(["weibo", "zhihu"]))
     items = deduplicate_content(items)
     _save_contents(items)
     return {"collected": len(items)}
@@ -38,7 +39,7 @@ def collect_platforms() -> Dict[str, int]:
 def collect_search(queries: List[str]) -> Dict[str, int]:
     """手动触发搜索采集"""
     collector = SearchCollector()
-    items = collector.collect(queries)
+    items = asyncio.run(collector.collect(queries))
     items = deduplicate_content(items)
     _save_contents(items)
     return {"collected": len(items)}
