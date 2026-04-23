@@ -87,3 +87,33 @@ volumes:
   redis_data:
   milvus_data:
   minio_data:
+
+  celery_worker:
+    build: .
+    command: celery -A src.worker.celery_app worker --loglevel=info
+    depends_on:
+      redis:
+        condition: service_started
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/newsagent
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY}
+      - MINIMAX_EMBEDDING_API_KEY=${MINIMAX_EMBEDDING_API_KEY}
+    volumes:
+      - .:/app
+
+  celery_beat:
+    build: .
+    command: celery -A src.worker.celery_app beat --loglevel=info
+    depends_on:
+      - celery_worker
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    volumes:
+      - .:/app
