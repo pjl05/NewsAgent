@@ -7,6 +7,7 @@ from src.db.redis import redis_client
 from src.db.milvus import milvus_client
 from src.agent.graph import news_agent
 from src.services.minimax import get_minimax
+from src.worker.tasks import collect_rss, collect_platforms
 
 
 class QueryRequest(BaseModel):
@@ -70,3 +71,17 @@ async def search_content(query: str, top_k: int = 10):
         return {"results": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/admin/collect/rss")
+async def trigger_rss_collection():
+    """手动触发 RSS 采集任务"""
+    result = collect_rss.delay()
+    return {"task_id": result.id, "status": "queued"}
+
+
+@app.post("/admin/collect/platforms")
+async def trigger_platform_collection():
+    """手动触发微博/知乎热搜采集"""
+    result = collect_platforms.delay()
+    return {"task_id": result.id, "status": "queued"}
