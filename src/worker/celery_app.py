@@ -32,5 +32,15 @@ celery_app.conf.update(
             "task": "src.worker.tasks.push_weekly_report_task",
             "schedule": crontab(hour=9, minute=0, day_of_week=1),
         },
+        # Phase 6: 每日 embedding 生成
+        "daily-embedding": {
+            "task": "src.worker.tasks.daily_embedding_task",
+            "schedule": crontab(hour=23, minute=0),
+        },
+        # Phase 6: 每日摘要/TTS 生成
+        "daily-generation": {
+            "task": "src.worker.tasks.daily_generation_task",
+            "schedule": crontab(hour=1, minute=0),
+        },
     },
 )
