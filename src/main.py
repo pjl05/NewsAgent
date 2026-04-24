@@ -8,6 +8,9 @@ from src.db.milvus import milvus_client
 from src.agent.graph import news_agent
 from src.services.minimax import get_minimax
 from src.worker.tasks import collect_rss, collect_platforms
+from src.recommender.engine import RecommendationEngine
+from src.recommender.collab import CollaborativeFilter
+from src.recommender.embedder import ContentEmbedder
 
 
 class QueryRequest(BaseModel):
@@ -85,3 +88,16 @@ async def trigger_platform_collection():
     """手动触发微博/知乎热搜采集"""
     result = collect_platforms.delay()
     return {"task_id": result.id, "status": "queued"}
+
+
+@app.get("/content/recommend")
+async def recommend_content(user_id: str, top_k: int = 20):
+    """个性化推荐"""
+    try:
+        collab = CollaborativeFilter()
+        collab.load_from_db(user_id)
+        engine = RecommendationEngine(collab)
+        results = engine.get_recommendations(user_id, top_k=top_k)
+        return {"results": results, "count": len(results)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
