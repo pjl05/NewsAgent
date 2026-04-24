@@ -15,6 +15,12 @@ from src.recommender.engine import RecommendationEngine
 from src.recommender.collab import CollaborativeFilter
 from src.recommender.embedder import ContentEmbedder
 from src.generator import Summarizer, TTSGenerator, ChartGenerator
+from src.wechat import MessageHandler, ScheduledPusher, WeChatClient
+
+
+class WeChatMessageRequest(BaseModel):
+    openid: str
+    content: str
 
 
 class QueryRequest(BaseModel):
@@ -188,4 +194,54 @@ async def chart_topic(req: TopicDistributionRequest):
         )
     except Exception as e:
         logger.exception("chart_topic failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# Phase 5: WeChat integration endpoints
+
+@app.post("/wechat/send")
+async def send_wechat_message(req: WeChatMessageRequest):
+    """发送微信消息给指定用户"""
+    try:
+        client = WeChatClient()
+        result = client.send_message(req.openid, req.content)
+        return {"status": "ok", "result": result}
+    except Exception as e:
+        logger.exception("send_wechat_message failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/wechat/handle")
+async def handle_wechat_message(req: QueryRequest):
+    """处理微信用户消息，返回Agent响应"""
+    try:
+        handler = MessageHandler()
+        result = handler.handle(req.query, req.user_id)
+        return {"result": result}
+    except Exception as e:
+        logger.exception("handle_wechat_message failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/wechat/push/daily")
+async def push_daily():
+    """手动触发每日推送"""
+    try:
+        pusher = ScheduledPusher()
+        result = pusher.push_daily([])
+        return {"status": "ok", "result": result}
+    except Exception as e:
+        logger.exception("push_daily failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/wechat/push/weekly")
+async def push_weekly():
+    """手动触发每周推送"""
+    try:
+        pusher = ScheduledPusher()
+        result = pusher.push_weekly([])
+        return {"status": "ok", "result": result}
+    except Exception as e:
+        logger.exception("push_weekly failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e

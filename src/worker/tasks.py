@@ -11,6 +11,7 @@ from src.collector.search_collector import SearchCollector
 from src.collector.dedup import deduplicate_content
 from src.db.database import get_db
 from src.models.content import Content
+from src.wechat import ScheduledPusher
 
 logger = logging.getLogger(__name__)
 
@@ -68,3 +69,36 @@ def _save_contents(items: List[Dict[str, Any]]) -> None:
                 item.get("content_id"),
                 e,
             )
+
+
+# Phase 5: WeChat scheduled push tasks
+
+DEFAULT_PUSH_USER_IDS: List[str] = []  # populated from user preferences at runtime
+
+
+def _get_push_user_ids() -> List[str]:
+    """获取所有订阅了推送的用户 ID 列表"""
+    # TODO: 从用户偏好设置/数据库中读取订阅了推送的用户
+    return DEFAULT_PUSH_USER_IDS
+
+
+@celery_app.task
+def push_daily_summary_task() -> Dict[str, int]:
+    """定时发送日报：每天 8:00 AM"""
+    user_ids = _get_push_user_ids()
+    if not user_ids:
+        logger.info("[push_daily_summary_task] 没有订阅用户，跳过")
+        return {"success": 0, "failure": 0}
+    pusher = ScheduledPusher()
+    return pusher.push_daily(user_ids)
+
+
+@celery_app.task
+def push_weekly_report_task() -> Dict[str, int]:
+    """定时发送周报：每周一 9:00 AM"""
+    user_ids = _get_push_user_ids()
+    if not user_ids:
+        logger.info("[push_weekly_report_task] 没有订阅用户，跳过")
+        return {"success": 0, "failure": 0}
+    pusher = ScheduledPusher()
+    return pusher.push_weekly(user_ids)
