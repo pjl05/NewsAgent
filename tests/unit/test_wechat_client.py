@@ -10,8 +10,8 @@ from src.wechat.wechat_client import WeChatClient, WeChatAPIError
 def mock_settings():
     """模拟 WeChat 设置"""
     settings = MagicMock()
-    settings.wechat_app_id = "wx8b592dcf8f213a81"
-    settings.wechat_app_secret = "4bec04ab6e274e066cbbc3c609b91a1d"
+    settings.wechat_app_id = "test-wechat-app-id"
+    settings.wechat_app_secret = "test-wechat-app-secret"
     return settings
 
 
@@ -206,8 +206,8 @@ class TestWeChatClientGetAccessToken:
 
         assert "api.weixin.qq.com/cgi-bin/token" in url
         assert params["grant_type"] == "client_credential"
-        assert params["appid"] == "wx8b592dcf8f213a81"
-        assert params["secret"] == "4bec04ab6e274e066cbbc3c609b91a1d"
+        assert params["appid"] == "test-wechat-app-id"
+        assert params["secret"] == "test-wechat-app-secret"
 
 
 class TestWeChatClientSendMessage:

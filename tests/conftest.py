@@ -16,7 +16,7 @@ def mock_settings():
     settings.redis_url = "redis://localhost:6379/0"
     settings.milvus_host = "localhost"
     settings.milvus_port = 19530
-    settings.minimax_api_key = "sk-cp-lHExR1fbSDQw4QdwDIsLUZIOATAXcooBUnpKMXIIDBAsBvpadscNNqc5h634Og4GG-ru34cxokk-S0nh69eFSQ-4mzH1J7YSudQ3MCxmccvD-EA9nLDA4qs"
-    settings.minimax_embedding_api_key = "sk-cc46a6f6615b4708a2c0c3d42b631123"
+    settings.minimax_api_key = "test-minimax-api-key"
+    settings.minimax_embedding_api_key = "test-embedding-api-key"
     settings.minimax_model = "MiniMax-M2.7"
     return settings
