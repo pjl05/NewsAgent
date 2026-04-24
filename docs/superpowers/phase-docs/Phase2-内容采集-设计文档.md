@@ -10,15 +10,18 @@
 
 实现全网内容自动采集系统，**全部采用免费方案，无强制付费 API**。
 
-| 来源 | 方式 | 优先级 |
-|------|------|--------|
-| 中文 RSS 源 | feedparser | P0（主力） |
-| 微博/知乎热搜 | API | P0 |
-| Bing Search API | httpx | P1（备用） |
-| Jina AI Reader | httpx | P2（补充抓取） |
-| DuckDuckGo | Playwright / httpx | 备选兜底 |
+| 来源 | 方式 | 优先级 | 备注 |
+|------|------|--------|------|
+| 中文 RSS 源 | feedparser | P0（主力） | 无需 API Key |
+| 微博热搜 | TianAPI weibohot | P0 | 100次/天，实时 |
+| 抖音热搜 | TianAPI douyinhot | P0 | 100次/天，每3分钟更新 |
+| 百度热搜 | TianAPI networkhot | P0 | 100次/天，实时 |
+| Bing Search | httpx | P1（搜索采集用） | 免费 tier，备用 |
+| DuckDuckGo | httpx + BeautifulSoup | P1 | 无限额备选 |
 
 **交付物：** 自动化内容采集管道，每日可采集数百条内容
+
+> **2026-04-23 更新**：原 PlatformCollector（直接调用微博/知乎 API）因平台加认证已失效，改为 TianAPI 聚合方案，额外新增抖音热搜采集。
 
 ---
 
@@ -30,8 +33,8 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    采集层 (Collector)                       │
 ├───────────────┬──────────────────┬──────────────────────────┤
-│  RSSCollector │ SearchCollector  │ PlatformCollector       │
-│  (feedparser) │ (Bing/DuckDuckGo)│   (Weibo/Zhihu)        │
+│  RSSCollector │ SearchCollector  │ TianAPICollector        │
+│  (feedparser) │ (Bing/DuckDuckGo)│ (微博/抖音/百度热搜)    │
 ├───────────────┴──────────────────┴──────────────────────────┤
 │                      内容标准化                              │
 │         title / source / url / published_at / summary       │
@@ -57,18 +60,19 @@
      │      ├─ 36kr RSS: https://36kr.com/feed
      │      ├─ 虎嗅 RSS: https://www.huxiu.com/rss/feed.xml
      │      ├─ 少数派 RSS: https://sspai.com/feed
-     │      ├─ 知乎 RSS: https://www.zhihu.com/rss
      │      └─ 更多 RSS 源...
      │
-     ├─→ 2. 热搜榜 API 采集
-     │      ├─ 微博热搜: https://weibo.com/ajax/side/hotSearch
-     │      ├─ 知乎热榜: https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total
-     │      └─ 雪球话题: https://xueqiu.com
+     ├─→ 2. 热搜榜 API 采集 (TianAPI)
+     │      ├─ 微博热搜: apis.tianapi.com/weibohot/index
+     │      ├─ 抖音热搜: apis.tianapi.com/douyinhot/index
+     │      └─ 百度热搜: apis.tianapi.com/networkhot/index
      │
      └─→ 3. 搜索补充采集
             ├─ Bing Search (免费 tier，每日有限额)
             └─ DuckDuckGo (备选，无限额)
 ```
+
+> **热搜 API 免费额度：100 次/天**，每天采集 3 次（RSS + 热搜 + 搜索）完全够用。
 
 ---
 
@@ -80,7 +84,7 @@ src/collector/
 ├── base.py                  # 抽象基类
 ├── rss_collector.py         # RSS 采集（P0）
 ├── search_collector.py      # 搜索引擎采集（Bing/DuckDuckGo）
-├── platform_collector.py    # 垂直平台采集（微博/知乎）
+├── tianapi_collector.py     # TianAPI 热搜采集（微博/抖音/百度）
 └── dedup.py                 # 内容去重
 
 src/worker/
@@ -198,9 +202,9 @@ class RSSCollector(BaseCollector):
         return tags
 ```
 
-### 2.4.3 PlatformCollector
+### 2.4.3 TianAPICollector
 
-直接调用平台公开 API，无需官方认证 Key。
+通过天行数据（TianAPI）聚合接口获取微博/抖音/百度热搜，完全免费且稳定。
 
 ```python
 import httpx
@@ -208,8 +212,16 @@ from datetime import datetime
 import hashlib
 from .base import BaseCollector
 
-class PlatformCollector(BaseCollector):
-    """垂直平台热搜采集器（免费 API）"""
+TIANAPI_BASE = "https://apis.tianapi.com"
+
+class TianAPICollector(BaseCollector):
+    """天行数据热搜采集器（微博/抖音/百度，100次/天免费）"""
+
+    LABEL_MAP = {0: "普通", 1: "新", 3: "热", 8: "推荐", 16: "视频"}
+
+    def __init__(self):
+        settings = get_settings()
+        self.key = settings.tianapi_key  # 配置 TIANAPI_KEY
 
     async def collect(self, sources: List[str]) -> List[Dict[str, Any]]:
         results = []
@@ -217,57 +229,44 @@ class PlatformCollector(BaseCollector):
             try:
                 if source == "weibo":
                     results.extend(await self._fetch_weibo())
-                elif source == "zhihu":
-                    results.extend(await self._fetch_zhihu())
+                elif source == "douyin":
+                    results.extend(await self._fetch_douyin())
+                elif source == "baidu":
+                    results.extend(await self._fetch_baidu())
             except Exception as e:
-                print(f"[PlatformCollector] Error fetching {source}: {e}")
+                print(f"[TianAPICollector] Error fetching {source}: {e}")
                 continue
         return results
 
     async def _fetch_weibo(self) -> List[Dict[str, Any]]:
-        """微博热搜（无需认证）"""
-        url = "https://weibo.com/ajax/side/hotSearch"
+        """微博热搜"""
+        url = f"{TIANAPI_BASE}/weibohot/index"
         async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(url)
+            response = await client.get(url, params={"key": self.key, "num": 50})
             response.raise_for_status()
             data = response.json()
+        # 返回 50 条，字段: hotword, hotwordnum, hottag
+        ...
 
-        results = []
-        for item in data.get("data", {}).get("realtime", [])[:20]:
-            title = item.get("word", "")
-            results.append({
-                "content_id": f"weibo_{hashlib.md5(title.encode()).hexdigest()[:12]}",
-                "title": title,
-                "source": "微博热搜",
-                "url": f"https://s.weibo.com/weibo?q={title}",
-                "published_at": datetime.utcnow(),
-                "summary": item.get("raw_hot", ""),
-                "tags": ["微博热搜"],
-            })
-        return results
-
-    async def _fetch_zhihu(self) -> List[Dict[str, Any]]:
-        """知乎热榜（无需认证）"""
-        url = "https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
-            response = await client.get(url)
+    async def _fetch_douyin(self) -> List[Dict[str, Any]]:
+        """抖音热搜（每3分钟更新）"""
+        url = f"{TIANAPI_BASE}/douyinhot/index"
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url, params={"key": self.key, "num": 50})
             response.raise_for_status()
             data = response.json()
+        # 返回 50 条，字段: word, hotindex, label (标签:新/热/荐/视频)
+        ...
 
-        results = []
-        for item in data.get("data", [])[:20]:
-            title = item.get("target", {}).get("title", "")
-            results.append({
-                "content_id": f"zhihu_{hashlib.md5(title.encode()).hexdigest()[:12]}",
-                "title": title,
-                "source": "知乎热榜",
-                "url": item.get("target", {}).get("url", ""),
-                "published_at": datetime.utcnow(),
-                "summary": item.get("target", {}).get("excerpt", ""),
-                "tags": ["知乎热榜"],
-            })
-        return results
+    async def _fetch_baidu(self) -> List[Dict[str, Any]]:
+        """百度热搜（全网热搜聚合）"""
+        url = f"{TIANAPI_BASE}/networkhot/index"
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url, params={"key": self.key, "num": 50})
+            response.raise_for_status()
+            data = response.json()
+        # 返回 50 条，字段: title, hotnum, digest
+        ...
 ```
 
 ### 2.4.4 SearchCollector
@@ -418,9 +417,10 @@ celery_app.conf.update(
 
 ```python
 # src/worker/tasks.py
+import asyncio
 from src.worker.celery_app import celery_app
 from src.collector.rss_collector import RSSCollector
-from src.collector.platform_collector import PlatformCollector
+from src.collector.tianapi_collector import TianAPICollector
 from src.collector.dedup import deduplicate_content
 from src.db.database import get_db
 from src.models.content import Content
@@ -435,25 +435,23 @@ def collect_rss():
 
 @celery_app.task
 def collect_platforms():
-    collector = PlatformCollector()
-    items = collector.collect(["weibo", "zhihu"])
+    collector = TianAPICollector()
+    items = asyncio.run(collector.collect(["weibo", "douyin", "baidu"]))
     items = deduplicate_content(items)
     _save_contents(items)
     return {"collected": len(items)}
 
 def _save_contents(items: List[Dict]):
     for item in items:
-        db = next(get_db())
-        try:
-            existing = db.query(Content).filter_by(content_id=item["content_id"]).first()
-            if not existing:
-                content = Content(**item)
-                db.add(content)
-                db.commit()
-        except Exception:
-            db.rollback()
-        finally:
-            db.close()
+        with get_db() as db:
+            try:
+                existing = db.query(Content).filter_by(content_id=item["content_id"]).first()
+                if not existing:
+                    content = Content(**item)
+                    db.add(content)
+                    db.commit()
+            except Exception as e:
+                db.rollback()
 ```
 
 ---
@@ -463,14 +461,13 @@ def _save_contents(items: List[Dict]):
 | 检查项 | 标准 |
 |--------|------|
 | RSS 采集 | 成功解析至少 3 个 RSS 源 |
-| 微博热搜 | API 返回结果正确解析 |
-| 知乎热榜 | API 返回结果正确解析 |
-| Bing Search | 免费 tier 每日限额内正常工作 |
-| DuckDuckGo | 作为 fallback 正常工作 |
+| 微博热搜 | TianAPI weibohot 返回 ≥ 40 条 |
+| 抖音热搜 | TianAPI douyinhot 返回 ≥ 40 条 |
+| 百度热搜 | TianAPI networkhot 返回 ≥ 30 条 |
 | 去重 | 相同 content_id 内容不重复入库 |
 | Celery Beat | 定时任务按时触发 |
 | 错误处理 | 单个源失败不影响整体采集 |
-| 测试 | 单元测试 100% 通过 |
+| 测试 | 单元测试通过 |
 
 ---
 
@@ -499,4 +496,4 @@ beautifulsoup4>=4.12.0  # DuckDuckGo HTML 解析
 celery>=5.3.0           # 任务队列
 ```
 
-所有依赖均为免费开源，无强制付费服务。
+**TianAPI**：注册免费获取 Key，100 次/天额度，无强制付费。

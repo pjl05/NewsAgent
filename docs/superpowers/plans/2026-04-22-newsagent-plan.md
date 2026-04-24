@@ -770,7 +770,7 @@ git commit -m "feat: RSS collector with feedparser"
 
 **Files:**
 - Create: `newsagent/src/collector/search_collector.py`
-- Create: `newsagent/src/collector/platform_collector.py`
+- Create: `newsagent/src/collector/tianapi_collector.py`
 
 - [ ] **Step 1: Create search collector**
 
@@ -817,39 +817,41 @@ class SearchCollector(BaseCollector):
             } for r in data.get("organic_results", [])[:10]]
 ```
 
-- [ ] **Step 2: Create platform collector**
+- [ ] **Step 2: Create TianAPI collector**
 
 ```python
-# src/collector/platform_collector.py
-from typing import List, Dict, Any
+# src/collector/tianapi_collector.py
+import httpx
 from .base import BaseCollector
 
-class PlatformCollector(BaseCollector):
-    """Collect from vertical platforms like Weibo, Zhihu, Xueqiu."""
+TIANAPI_BASE = "https://apis.tianapi.com"
+
+class TianAPICollector(BaseCollector):
+    """微博/抖音/百度热搜采集（通过 TianAPI）"""
+
+    LABEL_MAP = {0: "普通", 1: "新", 3: "热", 8: "推荐", 16: "视频"}
 
     def __init__(self):
-        self.platforms = {
-            "weibo": "https://api.weibo.com/1/trends",
-            "zhihu": "https://www.zhihu.com/api/v4/hot/replies/rank",
-            "xueqiu": "https://stock.xueqiu.com/v1/stock/search.json"
-        }
+        self.key = get_settings().tianapi_key
 
-    def collect(self, sources: List[str]) -> List[Dict[str, Any]]:
+    async def collect(self, sources: List[str]) -> List[Dict[str, Any]]:
         results = []
         for source in sources:
-            if source in self.platforms:
-                results.extend(self._fetch_platform(source))
+            if source == "weibo":
+                results.extend(await self._fetch_weibo())
+            elif source == "douyin":
+                results.extend(await self._fetch_douyin())
+            elif source == "baidu":
+                results.extend(await self._fetch_baidu())
         return results
-
-    def _fetch_platform(self, platform: str) -> List[Dict[str, Any]]:
-        return []
+    # ...
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add src/collector/
-git commit -m "feat: search and platform collectors"
+git commit -m "feat: TianAPI hot search collector (weibo/douyin/baidu)"
 ```
 
 ---
@@ -1360,7 +1362,7 @@ git commit -m "feat: WeChat integration with message handler and scheduled pushe
 # src/scheduler/tasks.py
 from src.collector.rss_collector import RSSCollector
 from src.collector.search_collector import SearchCollector
-from src.collector.platform_collector import PlatformCollector
+from src.collector.tianapi_collector import TianAPICollector
 from src.processor.embedder import ContentEmbedder
 from src.bot.pusher import ScheduledPusher
 from src.db.database import get_db
@@ -1373,7 +1375,7 @@ def daily_collection():
     collectors = [
         RSSCollector(),
         SearchCollector(api_key=settings.serpapi_key),
-        PlatformCollector()
+        TianAPICollector()
     ]
     all_content = []
     for collector in collectors:
@@ -1487,7 +1489,7 @@ git commit -m "feat: scheduler with daily tasks and e2e test"
 ## Spec Coverage Check
 
 - [x] 主题订阅 (User.subscriptions) - Phase 2+3
-- [x] 全网内容采集 (RSS/Search/Platform) - Task 5-6
+- [x] 全网内容采集 (RSS/Search/TianAPI微博/抖音/百度) - Task 5-6
 - [x] 内容去重与质量过滤 - Phase 2
 - [x] 个性化推荐 (RecommendationEngine) - Task 7
 - [x] 每日推送 (ScheduledPusher) - Task 9

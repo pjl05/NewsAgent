@@ -39,7 +39,7 @@ def daily_collection():
     from src.collector.search_collector import SearchCollector
     from src.db.database import get_db
     from src.models.content import Content
-    collectors = [RSSCollector(), SearchCollector(), PlatformCollector()]
+    collectors = [RSSCollector(), SearchCollector(), TianAPICollector()]
     all_content = []
     for collector in collectors:
         all_content.extend(collector.collect())
