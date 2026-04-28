@@ -6,6 +6,17 @@ __pycache__/
 *.py[cod]
 *.so
 .venv/
+*.egg-info/
+.pytest_cache/
+.hypothesis/
+htmlcov/
+.coverage
+
+# Celery
+celerybeat-schedule
+
+# Milvus
+*.db.lock
 
 # IDE
 .idea/
@@ -17,3 +28,12 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Frontend (newsagent/frontend/)
+node_modules/
+dist/
+.vite/
+playwright-report/
+test-results/
+.playwright/
+

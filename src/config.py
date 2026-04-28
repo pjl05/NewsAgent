@@ -12,8 +12,6 @@ class Settings(BaseSettings):
     minimax_api_key: str = ""
     minimax_embedding_api_key: str = ""
     minimax_model: str = "MiniMax-M2.7"
-    wechat_app_id: str = ""
-    wechat_app_secret: str = ""
     bing_api_key: str = ""
     tianapi_key: str = ""
 

@@ -15,14 +15,6 @@ from src.recommender.engine import RecommendationEngine
 from src.recommender.collab import CollaborativeFilter
 from src.recommender.embedder import ContentEmbedder
 from src.generator import Summarizer, TTSGenerator, ChartGenerator
-from src.wechat import MessageHandler, ScheduledPusher, WeChatClient
-
-
-class WeChatMessageRequest(BaseModel):
-    openid: str
-    content: str
-
-
 class QueryRequest(BaseModel):
     query: str
     user_id: str
@@ -120,13 +112,14 @@ async def trigger_platform_collection():
 
 
 @app.get("/content/recommend")
-async def recommend_content(user_id: str, top_k: int = 20):
+async def recommend_content(user_id: str | None = None, top_k: int = 20):
     """个性化推荐"""
+    uid = user_id or "default"
     try:
         collab = CollaborativeFilter()
-        collab.load_from_db(user_id)
+        collab.load_from_db(uid)
         engine = RecommendationEngine(collab)
-        results = engine.get_recommendations(user_id, top_k=top_k)
+        results = engine.get_recommendations(uid, top_k=top_k)
         return {"results": results, "count": len(results)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -197,51 +190,3 @@ async def chart_topic(req: TopicDistributionRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-# Phase 5: WeChat integration endpoints
-
-@app.post("/wechat/send")
-async def send_wechat_message(req: WeChatMessageRequest):
-    """发送微信消息给指定用户"""
-    try:
-        client = WeChatClient()
-        result = client.send_message(req.openid, req.content)
-        return {"status": "ok", "result": result}
-    except Exception as e:
-        logger.exception("send_wechat_message failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/wechat/handle")
-async def handle_wechat_message(req: QueryRequest):
-    """处理微信用户消息，返回Agent响应"""
-    try:
-        handler = MessageHandler()
-        result = handler.handle(req.query, req.user_id)
-        return {"result": result}
-    except Exception as e:
-        logger.exception("handle_wechat_message failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/wechat/push/daily")
-async def push_daily():
-    """手动触发每日推送"""
-    try:
-        pusher = ScheduledPusher()
-        result = pusher.push_daily([])
-        return {"status": "ok", "result": result}
-    except Exception as e:
-        logger.exception("push_daily failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/wechat/push/weekly")
-async def push_weekly():
-    """手动触发每周推送"""
-    try:
-        pusher = ScheduledPusher()
-        result = pusher.push_weekly([])
-        return {"status": "ok", "result": result}
-    except Exception as e:
-        logger.exception("push_weekly failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e

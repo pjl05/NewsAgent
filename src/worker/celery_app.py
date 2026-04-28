@@ -23,15 +23,6 @@ celery_app.conf.update(
             "task": "src.worker.tasks.collect_platforms",
             "schedule": crontab(hour=22, minute=30),
         },
-        # Phase 5: WeChat 定时推送
-        "push-daily-summary": {
-            "task": "src.worker.tasks.push_daily_summary_task",
-            "schedule": crontab(hour=8, minute=0),
-        },
-        "push-weekly-report": {
-            "task": "src.worker.tasks.push_weekly_report_task",
-            "schedule": crontab(hour=9, minute=0, day_of_week=1),
-        },
         # Phase 6: 每日 embedding 生成
         "daily-embedding": {
             "task": "src.worker.tasks.daily_embedding_task",
